@@ -1,0 +1,33 @@
+{% extends "layout.html" %}
+{% block body %}
+<!-- Page Header-->
+{% set bg_img = url_for('static', filename='assets/img/post-bg.jpg') %}
+<header class="masthead" style="background-image: url('{{  bg_img }}')">
+    <div class="container position-relative px-4 px-lg-5">
+        <div class="row gx-4 gx-lg-5 justify-content-center">
+            <div class="col-md-10 col-lg-8 col-xl-7">
+                <div class="post-heading">
+                    <h1>{% for row in post %} {{ row[1] }} {% endfor %}</h1>
+
+                    <h2 class="subheading">{% for row in post %} {{ row[2] }} {% endfor %}</h2>
+                    <span class="meta">
+                        Posted by
+                        <a href="#!">Admin</a>
+                        {% for row in post %} {{ row[6] }} {% endfor %}
+                    </span>
+                </div>
+            </div>
+        </div>
+    </div>
+</header>
+<!-- Post Content-->
+<article class="mb-4">
+    <div class="container px-4 px-lg-5">
+        <div class="row gx-4 gx-lg-5 justify-content-center">
+            <div class="col-md-10 col-lg-8 col-xl-7">
+                <p>{% for row in post %} {{ row[4] }} {% endfor %}</p>
+            </div>
+        </div>
+    </div>
+</article>
+{% endblock %}
