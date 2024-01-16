@@ -1,0 +1,54 @@
+{% extends "layout.html" %}
+{% block body %}
+<!-- Page Header-->
+{% set hm_img = url_for('static', filename='assets/img/home-bg.jpg') %}
+<header class="masthead" style="background-image: url('{{ hm_img }}')">
+    <div class="container position-relative px-4 px-lg-5">
+        <div class="row gx-4 gx-lg-5 justify-content-center">
+            <div class="col-md-10 col-lg-8 col-xl-7">
+                <div class="site-heading">
+                    <h1>CampusChronicle</h1>
+                    <span class="subheading">A Blog Theme For Student</span>
+                </div>
+            </div>
+        </div>
+    </div>
+</header>
+<!-- Main Content-->
+<div class="container px-4 px-lg-5">
+    <div class="row gx-4 gx-lg-5 justify-content-center">
+        <div class="col-md-10 col-lg-8 col-xl-7">
+            <!-- Post preview-->
+            <!-- Pager-->
+            <div class="d-flex justify-content-between mb-4">
+                <a class="btn btn-primary  text-uppercase" href="{{ prev }}">&larr; Previous</a>
+                <a class="btn btn-primary  text-uppercase" href="{{ next }}">Next &rarr;</a>
+            </div>
+            <hr>
+            {% for row in post %}
+            <div class="post-preview">
+                <a href="/post/{{ row[3] }}">
+                    <h2 class="post-title">{{ row[1] }}</h2>
+                    <h3 class="post-subtitle">{{ row[2] }}</h3>
+                </a>
+                <p class="post-meta">
+                    Posted by
+                    <a href="#">{{ user.get('name') }}</a>
+                    on {{ row[6] }}
+                </p>
+            </div>
+            <!-- Divider-->
+            <hr class="my-4" />
+            {% endfor %}
+
+            <!-- Pager-->
+            <div class="d-flex justify-content-between mb-4">
+                <a class="btn btn-primary  text-uppercase" href="{{ prev }}">&larr; Previous</a>
+                <a class="btn btn-primary  text-uppercase" href="{{ next }}">Next &rarr;</a>
+            </div>
+
+
+        </div>
+    </div>
+</div>
+{% endblock %}

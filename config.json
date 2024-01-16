@@ -1,0 +1,10 @@
+{
+    "user": {
+        "name": "sonu",
+        "password": "1234",
+        "blog-name": "campuschronicle",
+        "about": "I am a dedicated student, always hungry for knowledge and eager to explore the ever-evolving landscape of programming languages and technologies. From the elegance of Python to the precision of C++, I am constantly honing my skills and expanding my toolkit to tackle new challenges.My coding journey began with a fascination for problem-solving and a desire to create meaningful, impactful solutions. Through countless hours of debugging and experimenting, I have developed a resilient mindset that drives me to overcome obstacles and turn them into opportunities for growth.",
+        "no_of_posts": "3"
+
+    }
+}

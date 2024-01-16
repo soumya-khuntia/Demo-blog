@@ -1,0 +1,70 @@
+{% extends "layout.html" %}
+{% block body %}
+<!-- Page Header-->
+{% set hm_img = url_for('static', filename='assets/img/post-bg.jpg') %}
+<header class="masthead mb-0" style="background-image: url('{{ hm_img }}')">
+  <div class="container position-relative px-4 px-lg-5">
+    <div class="row gx-4 gx-lg-5 justify-content-center">
+      <div class="col-md-10 col-lg-8 col-xl-7">
+        <div class="site-heading">
+          <h1>Admin Pannel</h1>
+          <span class="subheading">Manage your posts and blogs</span>
+        </div>
+      </div>
+    </div>
+  </div>
+</header>
+<!-- Centered Basic Actions -->
+<div class="container mt-3">
+  <div class="row justify-content-center">
+    <div class="col-md-6 text-center">
+      <h1>Basic Actions</h1>
+      <a href="/new"><button class="btn btn-primary text-uppercase">Add New</button></a>
+      <a href="/logout"><button class="btn btn-primary text-uppercase">Logout</button></a>
+    </div>
+  </div>
+  <hr>
+  <!-- Upload a File Section -->
+  <div class="row justify-content-center">
+    <div class="col-md-6 text-center">
+      <h1>Upload a File</h1>
+      <!-- Add your upload file code here -->
+    </div>
+  </div>
+  <hr>
+
+  <!-- Add/Edit Post Section -->
+  <div class="row justify-content-center mt-4">
+    <div class="col-md-8 text-center">
+      <h1>Add/Edit Post</h1>
+      <div class="table-responsive">
+        <table class="table">
+          <thead>
+            <tr>
+              <th>sno</th>
+              <th>Title</th>
+              <th>Date</th>
+              <th>Edit</th>
+              <th>Delete</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for row in post %}
+            <tr>
+              <td>{{ row[0] }}</td>
+              <td>{{ row[1] }}</td>
+              <td>{{ row[6] }}</td>
+              <td><a href="/edit/{{ row[0] }}"><button class="btn btn-primary text-uppercase">Edit</button></a></td>
+              <td>
+                <form method="post" action="{{ url_for('delete', sno=row[0]) }}" style="display: inline;">
+                  <button type="submit" class="btn btn-primary text-uppercase">Delete</button>
+                </form>
+              </td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+  {% endblock %}
