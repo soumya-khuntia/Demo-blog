@@ -12,7 +12,7 @@
                     <h2 class="subheading">{% for row in post %} {{ row[2] }} {% endfor %}</h2>
                     <span class="meta">
                         Posted by
-                        <a href="#!">Admin</a>
+                        <a href="#!">{{ user.get('name') }}</a>
                         {% for row in post %} {{ row[6] }} {% endfor %}
                     </span>
                 </div>

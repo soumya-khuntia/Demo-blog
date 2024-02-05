@@ -78,7 +78,7 @@ def about():
 def post_route(post_slug):
     cursor.execute("SELECT * FROM bpost WHERE slug = %s", (post_slug,))
     post = cursor.fetchall()
-    return render_template('post.html', post=post)
+    return render_template('post.html', post=post, user=user)
 
 @app.route('/new', methods=['GET', 'POST'])
 def new_post():
