@@ -67,6 +67,9 @@ def login():
         if name == user.get('name') and password == user.get('password'):
             session['logged_in'] = name
             return render_template('dashboard.html', post=post)
+        else:
+            flash('Invalid username/password!', 'danger')
+            return redirect(url_for('login'))
         
     return render_template('login.html', user=user)
 
@@ -127,6 +130,7 @@ def contact():
         cursor.execute(insert_query, (name, email, phone, message))
         db.commit()
         flash('Thank you for contacting us and we will get back to you soon', 'success')
+        return redirect(url_for('contact'))
 
     return render_template('contact.html')
 
