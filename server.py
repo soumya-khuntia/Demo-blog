@@ -2,6 +2,7 @@ from flask import Flask,render_template,request,url_for,Request,session,redirect
 import mysql.connector
 import json
 import math
+import uuid
 
 db = mysql.connector.connect(user='root', password= 'soumya2004',database='contacts')
 cursor= db.cursor()
@@ -15,60 +16,96 @@ user = config_data.get('user', {})
 @app.route('/')
 def home():
     # Pagination logic
-    cursor.execute("SELECT * FROM bpost")
+    cursor.execute("SELECT COUNT(*) FROM bpost")  # Count the total number of posts in the database
+    total_posts = cursor.fetchone()[0]  # Fetch the count
+    last = math.ceil(total_posts / int(user.get('no_of_posts')))
+
+    page = request.args.get('page')
+    if not str(page).isnumeric():
+        page = 1
+
+    page = int(page)
+    offset = (page - 1) * int(user.get('no_of_posts'))
+
+    cursor.execute("SELECT * FROM bpost LIMIT %s, %s", (offset, int(user.get('no_of_posts'))))
     posts = cursor.fetchall()
-    last = math.ceil(len(posts)/int(user.get('no_of_posts')))
-    page=request.args.get('page')
-    if(not str(page).isnumeric()):
-        page=1
-    
-    page=int(page)
-    posts=posts[((page-1)*int(user.get('no_of_posts'))):((page-1)*int(user.get('no_of_posts'))+int(user.get('no_of_posts')))]
-    if(page==1):
-        prev = "#"
-        next = "/?page=" + str(page+1)
-    elif(page==last):
-        prev = "/?page=" + str(page-1)
-        next = "#"
-    else:
-        prev = "/?page=" + str(page-1)
-        next = "/?page=" + str(page+1)
+
+    prev = "#"
+    next = "#"
+
+    if last > 1:
+        if page == 1:
+            next = "/?page=" + str(page + 1)
+        elif page == last:
+            prev = "/?page=" + str(page - 1)
+        else:
+            prev = "/?page=" + str(page - 1)
+            next = "/?page=" + str(page + 1)
+
     return render_template('index.html', post=posts, prev=prev, next=next, user=user)
 
 
 @app.route('/logout')
 def logout():
     session.pop('logged_in')
+    flash('You have been logged out','primary')
     return redirect('/')
 
-@app.route('/delete/<string:sno>', methods=[ 'POST'])
-def delete(sno):
-    if 'logged_in' in session and session['logged_in'] == user.get('name'):
-        if request.method == 'POST':
-            cursor.execute("DELETE FROM bpost WHERE slno=%s",(int(sno),))
-            db.commit()
-        return redirect('/dashboard')
+    
+@app.route('/sign_up', methods=['GET','POST'])
+def sign_up(user = user):
+    if request.method == 'POST':
+        sname = request.form['username']
+        spassword = request.form['password']
+        scpassword = request.form['cpassword']
+        semail = request.form['email']
+        uid=str(uuid.uuid4())
+        if spassword == scpassword:
+            cursor.execute("SELECT * FROM blogins WHERE name=%s",(sname,))
+            user = cursor.fetchone()
+            if user:
+                flash('Username already exists', 'danger')
+                return redirect('/sign_up')
+            else:
+                cursor.execute("INSERT INTO blogins (name, password, email, uuid) VALUES (%s, %s, %s, %s)", (sname, spassword, semail, uid))
+                db.commit()
+                session['logged_in'] = sname
+                return redirect('/dashboard')
+        else:
+            flash('Passwords do not match', 'danger')
+            return redirect('/sign_up')
+    return render_template('sign_up.html', user=user)
 
 @app.route('/dashboard', methods=['GET','POST'])
 def login():
-    cursor.execute("SELECT * FROM bpost")
-    post = cursor.fetchall()
-    if 'logged_in' in session and session['logged_in'] == user.get('name'):
-        return render_template('dashboard.html',post=post)
+    if 'logged_in' in session :
+        cursor.execute("SELECT * FROM blogins WHERE name=%s",(session['logged_in'],))
+        lg = cursor.fetchone()
+        uname=lg[4]
+        cursor.execute("SELECT * FROM bpost WHERE uname=%s",(uname,)) 
+        post = cursor.fetchall()
+        return render_template('dashboard.html',post=post,user=user)
 
     if request.method == 'POST':
         name = request.form['username']
         password = request.form['password']
-        #Adding data into database
-        """insert_query = "INSERT INTO blogins (name, password) VALUES (%s, %s)"
-        cursor.execute(insert_query, (name, password))
-        db.commit()"""
+        cursor.execute("SELECT * FROM blogins WHERE name=%s", (name,))
+        lguser = cursor.fetchone()
         # Check if the entered name matches the user's name
-        if name == user.get('name') and password == user.get('password'):
-            session['logged_in'] = name
-            return render_template('dashboard.html', post=post)
+        if lguser:
+            if password == lguser[2]:
+                session['logged_in'] = name
+                cursor.execute("SELECT * FROM blogins WHERE name=%s",(session['logged_in'],))
+                lg = cursor.fetchone()
+                uname=lg[4]
+                cursor.execute("SELECT * FROM bpost WHERE uname=%s",(uname,)) 
+                post = cursor.fetchall()
+                return render_template('dashboard.html', post=post, user=user)
+            else:
+                flash('Incorrect password!', 'danger')
+                return redirect(url_for('login'))
         else:
-            flash('Invalid username/password!', 'danger')
+            flash('Username does not exist', 'danger')
             return redirect(url_for('login'))
         
     return render_template('login.html', user=user)
@@ -85,21 +122,26 @@ def post_route(post_slug):
 
 @app.route('/new', methods=['GET', 'POST'])
 def new_post():
-    if 'logged_in' in session and session['logged_in'] == user.get('name'):
+    # Fetch the logged-in user's name from the database
+    cursor.execute("SELECT * FROM blogins WHERE name = %s", (session['logged_in'],))
+    db_user = cursor.fetchone()
+    uid=db_user[4]
+    if 'logged_in' in session:
         if request.method == 'POST':
             title = request.form.get('title')
             stitle = request.form.get('stitle')
             slug = request.form.get('slug')
             content = request.form.get('content')
-            insert_query = "INSERT INTO bpost (title, sub_title, slug, content) VALUES (%s, %s, %s, %s)"
-            cursor.execute(insert_query, (title, stitle, slug, content))
+            insert_query = "INSERT INTO bpost (title, sub_title, slug, content, uname) VALUES (%s, %s, %s, %s, %s)"
+            cursor.execute(insert_query, (title, stitle, slug, content, uid))
             db.commit()
+            flash(f'({title}) post added Successfully!', 'success')
             return redirect('/dashboard')
-        return render_template('new_post.html')
+        return render_template('new_post.html', user=user)
 
 @app.route('/edit/<string:sno>', methods=['GET', 'POST'])
 def edit(sno):
-    if 'logged_in' in session and session['logged_in'] == user.get('name'):
+    if 'logged_in' in session:
         cursor.execute("SELECT * FROM bpost WHERE slno=%s", (sno,))
         post = cursor.fetchall()
         if request.method == 'POST':
@@ -113,10 +155,19 @@ def edit(sno):
             update_query = "UPDATE bpost SET title=%s, sub_title=%s, slug=%s, content=%s WHERE slno=%s"
             cursor.execute(update_query, (title, stitle, slug, content, sno))
             db.commit()
+            flash(f'({title}) post updated Successfully!', 'info')
             return redirect('/dashboard')
             
-        return render_template('edit.html', sno=sno, post=post)
+        return render_template('edit.html', sno=sno, post=post, user=user)
 
+@app.route('/delete/<string:sno>', methods=[ 'POST'])
+def delete(sno):
+    if 'logged_in' in session:
+        if request.method == 'POST':
+            cursor.execute("DELETE FROM bpost WHERE slno=%s",(int(sno),))
+            db.commit()
+        flash('Successfully Deleted', 'warning')
+        return redirect('/dashboard')
 
 @app.route('/contact', methods=['GET', 'POST'])
 def contact():
@@ -132,7 +183,7 @@ def contact():
         flash('Thank you for contacting us and we will get back to you soon', 'success')
         return redirect(url_for('contact'))
 
-    return render_template('contact.html')
+    return render_template('contact.html', user=user)
 
 
 if __name__=='__main__':
