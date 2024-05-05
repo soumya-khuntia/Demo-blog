@@ -76,7 +76,7 @@
           <tbody>
             {% for row in post %}
             <tr>
-              <td>{{ row[0] }}</td>
+              <td>{{ loop.index }}</td>
               <td>{{ row[1] }}</td>
               <td>{{ row[6] }}</td>
               <td><a href="/edit/{{ row[0] }}"><button class="btn btn-info text-uppercase">Edit</button></a></td>

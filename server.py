@@ -48,7 +48,7 @@ def home():
 @app.route('/logout')
 def logout():
     session.pop('logged_in')
-    flash('You have been logged out','primary')
+    flash('You have been logged out','danger')
     return redirect('/')
 
     
@@ -109,6 +109,34 @@ def login():
             return redirect(url_for('login'))
         
     return render_template('login.html', user=user)
+    
+@app.route('/password_reset', methods=['GET', 'POST'])
+def password_reset():
+    if request.method == 'POST':
+        rname=request.form['username']
+        rmail=request.form['email']
+        rpassword=request.form['password']
+        rcpassword=request.form['cpassword']
+        cursor.execute("SELECT email FROM blogins WHERE name=%s", (rname,))
+        user_data = cursor.fetchone()
+        if user_data:
+            email = user_data[0]
+            if email == rmail:
+                if rpassword == rcpassword:
+                    # Update password
+                    cursor.execute("UPDATE blogins SET password=%s WHERE name=%s", (rpassword, rname))
+                    db.commit()
+                    flash('Password reset successful', 'success')
+                    return redirect(url_for('login'))
+                else:
+                    flash('Passwords do not match', 'danger')
+            else:
+                flash('Email does not match', 'danger')
+        else:
+            flash('Username does not exist', 'danger')
+
+        return redirect(url_for('password_reset'))
+    return render_template('password_reset.html', user=user)
 
 @app.route('/about')
 def about():
@@ -168,6 +196,7 @@ def delete(sno):
             db.commit()
         flash('Successfully Deleted', 'warning')
         return redirect('/dashboard')
+
 
 @app.route('/contact', methods=['GET', 'POST'])
 def contact():
