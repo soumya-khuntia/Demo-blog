@@ -1,13 +1,22 @@
 from flask import Flask,render_template,request,url_for,Request,session,redirect,flash
+from flask_mail import Mail, Message
 import mysql.connector
-import json
-import math
-import uuid
+import random,math,json,uuid
 
 db = mysql.connector.connect(user='root', password= 'soumya2004',database='contacts')
 cursor= db.cursor()
 app=Flask(__name__)
-app.secret_key = 'this is a secret key'
+app.secret_key = 'This is a secret key'
+
+# Flask-Mail configuration
+app.config['MAIL_SERVER'] = 'smtp.gmail.com'
+app.config['MAIL_PORT'] = 587
+app.config['MAIL_USE_TLS'] = True
+app.config['MAIL_USERNAME'] = 'Enter your email'
+app.config['MAIL_PASSWORD'] = 'Enter your password'
+app.config['MAIL_DEFAULT_SENDER'] = 'Enter sender email'
+
+mail = Mail(app)
 
 with open('config.json', 'r') as config_file:
     config_data = json.load(config_file)
@@ -67,10 +76,16 @@ def sign_up(user = user):
                 flash('Username already exists', 'danger')
                 return redirect('/sign_up')
             else:
-                cursor.execute("INSERT INTO blogins (name, password, email, uuid) VALUES (%s, %s, %s, %s)", (sname, spassword, semail, uid))
-                db.commit()
-                session['logged_in'] = sname
-                return redirect('/dashboard')
+                cursor.execute("SELECT * FROM blogins WHERE email=%s",(semail,))
+                useremail = cursor.fetchone()
+                if useremail:
+                    flash('Email already exists', 'danger')
+                    return redirect('/sign_up')
+                else:
+                    cursor.execute("INSERT INTO blogins (name, password, email, uuid) VALUES (%s, %s, %s, %s)", (sname, spassword, semail, uid))
+                    db.commit()
+                    session['logged_in'] = sname
+                    return redirect('/dashboard')
         else:
             flash('Passwords do not match', 'danger')
             return redirect('/sign_up')
@@ -113,30 +128,56 @@ def login():
 @app.route('/password_reset', methods=['GET', 'POST'])
 def password_reset():
     if request.method == 'POST':
-        rname=request.form['username']
         rmail=request.form['email']
-        rpassword=request.form['password']
-        rcpassword=request.form['cpassword']
-        cursor.execute("SELECT email FROM blogins WHERE name=%s", (rname,))
-        user_data = cursor.fetchone()
-        if user_data:
-            email = user_data[0]
-            if email == rmail:
-                if rpassword == rcpassword:
-                    # Update password
-                    cursor.execute("UPDATE blogins SET password=%s WHERE name=%s", (rpassword, rname))
-                    db.commit()
-                    flash('Password reset successful', 'success')
-                    return redirect(url_for('login'))
-                else:
-                    flash('Passwords do not match', 'danger')
-            else:
-                flash('Email does not match', 'danger')
+        cursor.execute("SELECT * FROM blogins WHERE email=%s",(rmail,))
+        useremail = cursor.fetchone()
+        if useremail:
+            session['email'] = rmail
+            try:
+                subject = 'Password Reset'
+                code = str(random.randint(10**5, 10**6 - 1)).zfill(6)
+                session["password_reset_code"] = code
+                msg = Message(subject, recipients=[rmail])
+                msg.body = f"Your password reset code is: {code}"
+                mail.send(msg)
+                flash('Passcode sent to email!', 'success')
+            except:
+                flash('Something went wrong!', 'danger')
+            return redirect('/passcode')
         else:
-            flash('Username does not exist', 'danger')
-
-        return redirect(url_for('password_reset'))
+            flash('Email does not exist', 'danger')
+            return redirect('/password_reset')
     return render_template('password_reset.html', user=user)
+
+@app.route('/passcode', methods=['GET', 'POST'])
+def passcode():
+    if request.method == 'POST':
+        code=request.form['code']
+        if code == session['password_reset_code']:
+            flash('Passcode verified successfully', 'success')
+            return redirect('/newpassword')
+        else:
+            flash('Incorrect code!', 'danger')
+            return redirect('/passcode')
+    return render_template('passcode.html', user=user)
+        
+
+@app.route('/newpassword', methods=['GET', 'POST'])
+def newpassword():
+    if request.method == 'POST':
+        password=request.form['password']
+        cpassword=request.form['cpassword']
+        if password == cpassword:
+            cursor.execute("UPDATE blogins SET password=%s WHERE email=%s",(password,session['email']))
+            db.commit()
+            session.pop('email')
+            session.pop('password_reset_code')
+            flash('Password changed successfully!','success')
+            return redirect('/dashboard')
+        else:
+            flash('Passwords do not match', 'danger')
+            return redirect('/newpassword')
+    return render_template('newpassword.html', user=user)
 
 @app.route('/about')
 def about():
