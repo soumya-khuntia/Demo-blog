@@ -1,26 +1,38 @@
-from flask import Flask,render_template,request,url_for,Request,session,redirect,flash
+from flask import Flask,render_template,request,url_for,session,redirect,flash
 from flask_mail import Mail, Message
 import mysql.connector
 import random,math,json,uuid
+from authlib.integrations.flask_client import OAuth
+
+with open('config.json', 'r') as config_file:
+    config_data = json.load(config_file)
+user = config_data.get('user', {})
 
 db = mysql.connector.connect(user='root', password= 'soumya2004',database='contacts')
 cursor= db.cursor()
 app=Flask(__name__)
 app.secret_key = 'This is a secret key'
 
+# Google OAuth2 configuration
+oauth = OAuth(app)
+goog = oauth.register(
+    name="google",
+    client_id=user.get('client_id'),
+    client_secret= user.get('client_secret'),
+    server_metadata_url='https://accounts.google.com/.well-known/openid-configuration',
+    client_kwargs={'scope': 'openid profile email'}
+)
+
 # Flask-Mail configuration
 app.config['MAIL_SERVER'] = 'smtp.gmail.com'
 app.config['MAIL_PORT'] = 587
 app.config['MAIL_USE_TLS'] = True
-app.config['MAIL_USERNAME'] = 'Enter your email'
-app.config['MAIL_PASSWORD'] = 'Enter your password'
-app.config['MAIL_DEFAULT_SENDER'] = 'Enter sender email'
+app.config['MAIL_USERNAME'] = user.get('mail')
+app.config['MAIL_PASSWORD'] = user.get('password')
+app.config['MAIL_DEFAULT_SENDER'] = user.get('mail')
 
 mail = Mail(app)
 
-with open('config.json', 'r') as config_file:
-    config_data = json.load(config_file)
-user = config_data.get('user', {})
 
 @app.route('/')
 def home():
@@ -56,7 +68,7 @@ def home():
 
 @app.route('/logout')
 def logout():
-    session.pop('logged_in')
+    session.clear()
     flash('You have been logged out','danger')
     return redirect('/')
 
@@ -91,15 +103,23 @@ def sign_up(user = user):
             return redirect('/sign_up')
     return render_template('sign_up.html', user=user)
 
-@app.route('/dashboard', methods=['GET','POST'])
+@app.route('/dashboard', methods=['GET', 'POST'])
 def login():
-    if 'logged_in' in session :
-        cursor.execute("SELECT * FROM blogins WHERE name=%s",(session['logged_in'],))
+    if 'logged_in' in session:
+        cursor.execute("SELECT * FROM blogins WHERE name=%s", (session['logged_in'],))
         lg = cursor.fetchone()
-        uname=lg[4]
-        cursor.execute("SELECT * FROM bpost WHERE uname=%s",(uname,)) 
+        uname = lg[4]
+        cursor.execute("SELECT * FROM bpost WHERE uname=%s", (uname,))
         post = cursor.fetchall()
-        return render_template('dashboard.html',post=post,user=user)
+        return render_template('dashboard.html', post=post, user=user)
+
+    if 'google_logged_in' in session:
+        cursor.execute("SELECT * FROM google_login WHERE email=%s", (session['google_logged_in'],))
+        lg = cursor.fetchone()
+        uid = lg[4]
+        cursor.execute("SELECT * FROM bpost WHERE uname=%s", (uid,))
+        post = cursor.fetchall()
+        return render_template('dashboard.html', post=post, user=user)
 
     if request.method == 'POST':
         name = request.form['username']
@@ -110,10 +130,10 @@ def login():
         if lguser:
             if password == lguser[2]:
                 session['logged_in'] = name
-                cursor.execute("SELECT * FROM blogins WHERE name=%s",(session['logged_in'],))
+                cursor.execute("SELECT * FROM blogins WHERE name=%s", (session['logged_in'],))
                 lg = cursor.fetchone()
-                uname=lg[4]
-                cursor.execute("SELECT * FROM bpost WHERE uname=%s",(uname,)) 
+                uname = lg[4]
+                cursor.execute("SELECT * FROM bpost WHERE uname=%s", (uname,))
                 post = cursor.fetchall()
                 return render_template('dashboard.html', post=post, user=user)
             else:
@@ -122,8 +142,34 @@ def login():
         else:
             flash('Username does not exist', 'danger')
             return redirect(url_for('login'))
-        
+
     return render_template('login.html', user=user)
+
+@app.route('/google_login')
+def google_login():
+    google = oauth.create_client("google")
+    redirect_uri = url_for('callback', _external=True)
+    return google.authorize_redirect(redirect_uri)
+
+@app.route('/callback')
+def callback():
+    token = oauth.google.authorize_access_token()
+    name = token.get('userinfo', {}).get('name')
+    fname = token.get('userinfo', {}).get('given_name')
+    email = token.get('userinfo', {}).get('email')
+    cursor.execute("SELECT * FROM google_login WHERE email=%s", (email,))
+    user = cursor.fetchone()
+    if user:
+        session['google_logged_in'] = email
+        return redirect('/dashboard')
+    if user is None:
+        uid = str(uuid.uuid4())
+        cursor.execute("INSERT INTO google_login (name, fname, email, uid) VALUES (%s, %s, %s, %s)", (name, fname, email, uid))
+        db.commit()
+        session['google_logged_in'] = email
+        return redirect('/dashboard')
+    return redirect(url_for('login'))
+
     
 @app.route('/password_reset', methods=['GET', 'POST'])
 def password_reset():
@@ -131,6 +177,7 @@ def password_reset():
         rmail=request.form['email']
         cursor.execute("SELECT * FROM blogins WHERE email=%s",(rmail,))
         useremail = cursor.fetchone()
+        uname=useremail[1]
         if useremail:
             session['email'] = rmail
             try:
@@ -138,7 +185,7 @@ def password_reset():
                 code = str(random.randint(10**5, 10**6 - 1)).zfill(6)
                 session["password_reset_code"] = code
                 msg = Message(subject, recipients=[rmail])
-                msg.body = f"Your password reset code is: {code}"
+                msg.body = f"User Name:- {uname}\n\nYour password reset code is: {code}"
                 mail.send(msg)
                 flash('Passcode sent to email!', 'success')
             except:
@@ -191,11 +238,11 @@ def post_route(post_slug):
 
 @app.route('/new', methods=['GET', 'POST'])
 def new_post():
-    # Fetch the logged-in user's name from the database
-    cursor.execute("SELECT * FROM blogins WHERE name = %s", (session['logged_in'],))
-    db_user = cursor.fetchone()
-    uid=db_user[4]
     if 'logged_in' in session:
+        # Fetch the logged-in user's name from the database
+        cursor.execute("SELECT * FROM blogins WHERE name = %s", (session['logged_in'],))
+        db_user = cursor.fetchone()
+        uid=db_user[4]
         if request.method == 'POST':
             title = request.form.get('title')
             stitle = request.form.get('stitle')
@@ -206,11 +253,26 @@ def new_post():
             db.commit()
             flash(f'({title}) post added Successfully!', 'success')
             return redirect('/dashboard')
-        return render_template('new_post.html', user=user)
+    if 'google_logged_in' in session:
+        # Fetch the logged-in user's name from the database
+        cursor.execute("SELECT * FROM google_login WHERE email = %s", (session['google_logged_in'],))
+        db_user = cursor.fetchone()
+        uid=db_user[4]
+        if request.method == 'POST':
+            title=request.form.get('title')
+            stitle = request.form.get('stitle')
+            slug = request.form.get('slug')
+            content = request.form.get('content')
+            insert_query = "INSERT INTO bpost (title, sub_title, slug, content, uname) VALUES (%s, %s, %s, %s, %s)"
+            cursor.execute(insert_query, (title, stitle, slug, content, uid))
+            db.commit()
+            flash(f'({title}) post added Successfully!', 'success')
+            return redirect('/dashboard')
+    return render_template('new_post.html', user=user)
 
 @app.route('/edit/<string:sno>', methods=['GET', 'POST'])
 def edit(sno):
-    if 'logged_in' in session:
+    if 'logged_in' in session or 'google_logged_in' in session:
         cursor.execute("SELECT * FROM bpost WHERE slno=%s", (sno,))
         post = cursor.fetchall()
         if request.method == 'POST':
@@ -231,7 +293,7 @@ def edit(sno):
 
 @app.route('/delete/<string:sno>', methods=[ 'POST'])
 def delete(sno):
-    if 'logged_in' in session:
+    if 'logged_in' in session or 'google_logged_in' in session:
         if request.method == 'POST':
             cursor.execute("DELETE FROM bpost WHERE slno=%s",(int(sno),))
             db.commit()
