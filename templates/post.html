@@ -7,13 +7,12 @@
         <div class="row gx-4 gx-lg-5 justify-content-center">
             <div class="col-md-10 col-lg-8 col-xl-7">
                 <div class="post-heading">
-                    <h1>{% for row in post %} {{ row[1] }} {% endfor %}</h1>
-
-                    <h2 class="subheading">{% for row in post %} {{ row[2] }} {% endfor %}</h2>
+                    <h1>{{ post[1] }}</h1>
+                    <h2 class="subheading">{{ post[2] }}</h2>
                     <span class="meta">
                         Posted by
-                        <span class="text-info fw-bold">{{ user.get('name') }}</span>
-                        {% for row in post %} {{ row[6] }} {% endfor %}
+                        <span class="text-info fw-bold">{{ uname }}</span>
+                        {{ post[6] }}
                     </span>
                 </div>
             </div>
@@ -25,7 +24,7 @@
     <div class="container px-4 px-lg-5">
         <div class="row gx-4 gx-lg-5 justify-content-center">
             <div class="col-md-10 col-lg-8 col-xl-7">
-                <p>{% for row in post %} {{ row[4] }} {% endfor %}</p>
+                <p>{{ post[4] }}</p>
             </div>
         </div>
     </div>

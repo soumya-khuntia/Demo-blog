@@ -47,10 +47,22 @@ def home():
 
     page = int(page)
     offset = (page - 1) * int(user.get('no_of_posts'))
-
     cursor.execute("SELECT * FROM bpost LIMIT %s, %s", (offset, int(user.get('no_of_posts'))))
     posts = cursor.fetchall()
 
+    # Fetch the posts user's name from the database
+    uname=[]
+    for i in posts:
+       uid=i[7]
+       cursor.execute("SELECT name FROM blogins WHERE uuid = %s", (uid,))
+       post1 = cursor.fetchone()
+       if post1:
+           uname.append(post1[0])
+       if post1 is None:
+           cursor.execute("SELECT fname FROM google_login WHERE uid = %s", (uid,))
+           post2=cursor.fetchone()
+           uname.append(post2[0])
+    
     prev = "#"
     next = "#"
 
@@ -63,7 +75,7 @@ def home():
             prev = "/?page=" + str(page - 1)
             next = "/?page=" + str(page + 1)
 
-    return render_template('index.html', post=posts, prev=prev, next=next, user=user)
+    return render_template('index.html', post=posts, prev=prev, next=next, user=user,uname=uname)
 
 
 @app.route('/logout')
@@ -103,8 +115,29 @@ def sign_up(user = user):
             return redirect('/sign_up')
     return render_template('sign_up.html', user=user)
 
-@app.route('/dashboard', methods=['GET', 'POST'])
+@app.route('/login', methods=['GET', 'POST'])
 def login():
+    if request.method == 'POST':
+        name = request.form['username']
+        password = request.form['password']
+        cursor.execute("SELECT * FROM blogins WHERE name=%s", (name,))
+        lguser = cursor.fetchone()
+        # Check if the entered name matches the user's name
+        if lguser:
+            if password == lguser[2]:
+                session['logged_in'] = name
+                return redirect(url_for('dashboard'))
+            else:
+                flash('Incorrect password!', 'danger')
+                return redirect(url_for('login'))
+        else:
+            flash('Username does not exist', 'danger')
+            return redirect(url_for('login'))
+
+    return render_template('login.html', user=user)
+
+@app.route('/dashboard', methods=['GET'])
+def dashboard():
     if 'logged_in' in session:
         cursor.execute("SELECT * FROM blogins WHERE name=%s", (session['logged_in'],))
         lg = cursor.fetchone()
@@ -121,29 +154,8 @@ def login():
         post = cursor.fetchall()
         return render_template('dashboard.html', post=post, user=user)
 
-    if request.method == 'POST':
-        name = request.form['username']
-        password = request.form['password']
-        cursor.execute("SELECT * FROM blogins WHERE name=%s", (name,))
-        lguser = cursor.fetchone()
-        # Check if the entered name matches the user's name
-        if lguser:
-            if password == lguser[2]:
-                session['logged_in'] = name
-                cursor.execute("SELECT * FROM blogins WHERE name=%s", (session['logged_in'],))
-                lg = cursor.fetchone()
-                uname = lg[4]
-                cursor.execute("SELECT * FROM bpost WHERE uname=%s", (uname,))
-                post = cursor.fetchall()
-                return render_template('dashboard.html', post=post, user=user)
-            else:
-                flash('Incorrect password!', 'danger')
-                return redirect(url_for('login'))
-        else:
-            flash('Username does not exist', 'danger')
-            return redirect(url_for('login'))
-
-    return render_template('login.html', user=user)
+    flash('You need to login first', 'warning')
+    return redirect(url_for('login'))
 
 @app.route('/google_login')
 def google_login():
@@ -232,9 +244,22 @@ def about():
 
 @app.route('/post/<string:post_slug>', methods=['GET'])
 def post_route(post_slug):
-    cursor.execute("SELECT * FROM bpost WHERE slug = %s", (post_slug,))
-    post = cursor.fetchall()
-    return render_template('post.html', post=post, user=user)
+    try:
+        cursor.execute("SELECT * FROM bpost WHERE slug = %s", (post_slug,))
+        post = cursor.fetchone()
+        uid=post[7]
+        cursor.execute("SELECT name FROM blogins WHERE uuid = %s", (uid,))
+        post1 = cursor.fetchone()
+        if post1:
+            uname=post1[0]
+        if post1 is None:
+            cursor.execute("SELECT fname FROM google_login WHERE uid = %s", (uid,))
+            post2=cursor.fetchone()
+            uname=post2[0]
+    except:
+        flash('Something goes wrong in database!', 'danger')
+        return redirect('/')
+    return render_template('post.html', post=post, user=user,uname=uname)
 
 @app.route('/new', methods=['GET', 'POST'])
 def new_post():
