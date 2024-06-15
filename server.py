@@ -33,6 +33,14 @@ app.config['MAIL_DEFAULT_SENDER'] = user.get('mail')
 
 mail = Mail(app)
 
+def truncate_description(description, word_limit=20):
+    words = description.split()
+    if len(words) > word_limit:
+        return ' '.join(words[:word_limit]) + ' ....'
+    return description
+
+app.jinja_env.filters['truncate'] = truncate_description
+
 
 @app.route('/')
 def home():
@@ -77,6 +85,57 @@ def home():
 
     return render_template('index.html', post=posts, prev=prev, next=next, user=user,uname=uname)
 
+
+@app.route('/all_blogs', methods=['GET','POST'])
+def all_blogs():
+
+    filter_by = request.args.get('filter_by', '')
+
+    if filter_by == 'name':
+        cursor.execute("SELECT * FROM bpost ORDER BY title ASC")
+    elif filter_by == 'newest':
+        cursor.execute("SELECT * FROM bpost ORDER BY date DESC")
+    elif filter_by == 'oldest':
+        cursor.execute("SELECT * FROM bpost ORDER BY date ASC")
+    else:
+        cursor.execute("SELECT * FROM bpost")
+
+    posts = cursor.fetchall()
+
+    uname=[]
+    for i in posts:
+        uid=i[7]
+        cursor.execute("SELECT name FROM blogins WHERE uuid = %s", (uid,))
+        post1 = cursor.fetchone()
+        if post1:
+            uname.append(post1[0])
+        if post1 is None:
+            cursor.execute("SELECT fname FROM google_login WHERE uid = %s", (uid,))
+            post2=cursor.fetchone()
+            uname.append(post2[0])
+
+    return render_template('all_blogs.html', user=user, post=posts, uname=uname)
+
+@app.route('/search', methods=['GET','POST'])
+def search_posts():
+    if request.method == 'GET':
+        search=request.args.get('search', '')
+        cursor.execute("SELECT * FROM bpost WHERE title LIKE %s", ('%'+search+'%',))
+        posts=cursor.fetchall()
+    
+    uname=[]
+    for i in posts:
+        uid=i[7]
+        cursor.execute("SELECT name FROM blogins WHERE uuid = %s", (uid,))
+        post1 = cursor.fetchone()
+        if post1:
+            uname.append(post1[0])
+        if post1 is None:
+            cursor.execute("SELECT fname FROM google_login WHERE uid = %s", (uid,))
+            post2=cursor.fetchone()
+            uname.append(post2[0])
+    
+    return render_template('all_blogs.html', user=user, post=posts, uname=uname)
 
 @app.route('/logout')
 def logout():
@@ -173,6 +232,7 @@ def callback():
     user = cursor.fetchone()
     if user:
         session['google_logged_in'] = email
+        session['name'] = fname
         return redirect('/dashboard')
     if user is None:
         uid = str(uuid.uuid4())
