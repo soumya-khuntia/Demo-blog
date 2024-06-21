@@ -1,7 +1,7 @@
 from flask import Flask,render_template,request,url_for,session,redirect,flash
 from flask_mail import Mail, Message
 import mysql.connector
-import random,math,json,uuid
+import random,math,json,uuid,re,os
 from authlib.integrations.flask_client import OAuth
 
 with open('config.json', 'r') as config_file:
@@ -86,56 +86,39 @@ def home():
     return render_template('index.html', post=posts, prev=prev, next=next, user=user,uname=uname)
 
 
-@app.route('/all_blogs', methods=['GET','POST'])
+@app.route('/all_blogs', methods=['GET', 'POST'])
 def all_blogs():
-
     filter_by = request.args.get('filter_by', '')
+    search_query = request.args.get('search', '')
 
-    if filter_by == 'name':
-        cursor.execute("SELECT * FROM bpost ORDER BY title ASC")
-    elif filter_by == 'newest':
-        cursor.execute("SELECT * FROM bpost ORDER BY date DESC")
-    elif filter_by == 'oldest':
-        cursor.execute("SELECT * FROM bpost ORDER BY date ASC")
+    if search_query:
+        cursor.execute("SELECT * FROM bpost WHERE title LIKE %s", ('%' + search_query + '%',))
+        posts = cursor.fetchall()
     else:
         cursor.execute("SELECT * FROM bpost")
+        posts = cursor.fetchall()
 
-    posts = cursor.fetchall()
+    if filter_by == 'name':
+        posts = sorted(posts, key=lambda x: x[1].lower())
+    elif filter_by == 'newest':
+        posts = sorted(posts, key=lambda x: x[6], reverse=True)
+    elif filter_by == 'oldest':
+        posts = sorted(posts, key=lambda x: x[6])
 
-    uname=[]
-    for i in posts:
-        uid=i[7]
+    uname = []
+    for post in posts:
+        uid = post[7]
         cursor.execute("SELECT name FROM blogins WHERE uuid = %s", (uid,))
-        post1 = cursor.fetchone()
-        if post1:
-            uname.append(post1[0])
-        if post1 is None:
+        user_name = cursor.fetchone()
+        if user_name:
+            uname.append(user_name[0])
+        else:
             cursor.execute("SELECT fname FROM google_login WHERE uid = %s", (uid,))
-            post2=cursor.fetchone()
-            uname.append(post2[0])
+            user_name = cursor.fetchone()
+            uname.append(user_name[0])
 
-    return render_template('all_blogs.html', user=user, post=posts, uname=uname)
+    return render_template('all_blogs.html', user=user, post=posts, uname=uname, search_query=search_query)
 
-@app.route('/search', methods=['GET','POST'])
-def search_posts():
-    if request.method == 'GET':
-        search=request.args.get('search', '')
-        cursor.execute("SELECT * FROM bpost WHERE title LIKE %s", ('%'+search+'%',))
-        posts=cursor.fetchall()
-    
-    uname=[]
-    for i in posts:
-        uid=i[7]
-        cursor.execute("SELECT name FROM blogins WHERE uuid = %s", (uid,))
-        post1 = cursor.fetchone()
-        if post1:
-            uname.append(post1[0])
-        if post1 is None:
-            cursor.execute("SELECT fname FROM google_login WHERE uid = %s", (uid,))
-            post2=cursor.fetchone()
-            uname.append(post2[0])
-    
-    return render_template('all_blogs.html', user=user, post=posts, uname=uname)
 
 @app.route('/logout')
 def logout():
@@ -331,8 +314,8 @@ def new_post():
         if request.method == 'POST':
             title = request.form.get('title')
             stitle = request.form.get('stitle')
-            slug = request.form.get('slug')
             content = request.form.get('content')
+            slug = slugify(title)
             insert_query = "INSERT INTO bpost (title, sub_title, slug, content, uname) VALUES (%s, %s, %s, %s, %s)"
             cursor.execute(insert_query, (title, stitle, slug, content, uid))
             db.commit()
@@ -346,14 +329,24 @@ def new_post():
         if request.method == 'POST':
             title=request.form.get('title')
             stitle = request.form.get('stitle')
-            slug = request.form.get('slug')
             content = request.form.get('content')
+            slug = slugify(title)
             insert_query = "INSERT INTO bpost (title, sub_title, slug, content, uname) VALUES (%s, %s, %s, %s, %s)"
             cursor.execute(insert_query, (title, stitle, slug, content, uid))
             db.commit()
             flash(f'({title}) post added Successfully!', 'success')
             return redirect('/dashboard')
     return render_template('new_post.html', user=user)
+
+
+def slugify(text):
+    # Remove non-word characters, convert to lowercase, and replace spaces with hyphens
+    slug = re.sub(r'[\W_]+', '-', text.lower().replace(' ', '-'))
+    
+    # Remove leading/trailing hyphens
+    slug = re.sub(r'^-+|-+$', '', slug)
+    return slug
+
 
 @app.route('/edit/<string:sno>', methods=['GET', 'POST'])
 def edit(sno):
@@ -363,7 +356,7 @@ def edit(sno):
         if request.method == 'POST':
             title = request.form.get('title')
             stitle = request.form.get('stitle')
-            slug = request.form.get('slug')
+            slug = slugify(title)
             content = request.form.get('content')
             # img_file = request.form.get('img_file')
 

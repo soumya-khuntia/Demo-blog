@@ -1,5 +1,4 @@
-{% extends "layout.html" %}
-{% block body %}
+{% extends "layout.html" %} {% block body %}
 <!-- Page Header-->
 {% set hm_img = url_for('static', filename='assets/img/home-bg.jpg') %}
 <header class="masthead mb-1" style="background-image: url('{{ hm_img }}')">
@@ -16,48 +15,60 @@
 </header>
 <div class="container">
     <div class="row justify-content-center">
-      <div class="col-md-6 text-center">
-        <h1>Basic Actions</h1>
-        <a href="/dashboard"><button class="btn btn-success text-uppercase">Dashboard Home</button></a>
-        <a href="/logout"><button class="btn btn-danger text-uppercase">logout</button></a>
-      </div>
+        <div class="col-md-6 text-center">
+            <h1>Basic Actions</h1>
+            <a href="/dashboard"><button class="btn btn-success text-uppercase">
+                    Dashboard Home
+                </button></a>
+            <a href="/logout"><button class="btn btn-danger text-uppercase">logout</button></a>
+        </div>
     </div>
 </div>
-<hr>
-<div class="cont1 form-group">
-    <h1>Add post</h1>
-    <form class="form" id="contactForm" data-sb-form-api-token="API_TOKEN" action="/new" method="post">
-        <div class="form-floating">
-            <input class="form-control" id="title" type="text" name="title" placeholder="Enter your title..."
-                data-sb-validations="required" />
-            <label for="title">Title</label>
-            <div class="invalid-feedback" data-sb-feedback="name:required">A name is required.</div>
-        </div>
-        <div class="form-floating">
-            <input class="form-control" id="stitle" type="text" name="stitle" placeholder="Enter your sub_title..."
-                data-sb-validations="required" />
-            <label for="stitle">Sub-Title</label>
-        </div>
-        <div class="form-floating">
-            <input class="form-control" id="slug" type="text" name="slug" placeholder="Enter your slug..."
-                data-sb-validations="required" />
-            <label for="phone">Slug</label>
-        </div>
-        <div class="form-floating">
-            <textarea class="form-control" id="content" name="content" placeholder="Enter your content here..."
-                style="height: 12rem" data-sb-validations="required"></textarea>
-            <label for="message">Content</label>
-            <div class="invalid-feedback" data-sb-feedback="message:required">A content is required.</div>
-        </div>
-        <br />
-        <!-- <div class="form-floating">
-                    <textarea class="form-control" id="img_file" name="img_file" placeholder="put your file name here..." style="height: 12rem" data-sb-validations="required"></textarea>
-                    <label for="message">Image File</label>
+<hr />
+<div class="row justify-content-center">
+    <div class="col-md-6 text-center">
+        <div class="form-group">
+            <h1>Add post</h1>
+            <form class="form" id="contactForm" data-sb-form-api-token="API_TOKEN" action="/new" method="post">
+                <div class="form-floating">
+                    <input class="form-control" id="title" type="text" name="title" placeholder="Enter your title..."
+                        data-sb-validations="required" />
+                    <label for="title">Title</label>
+                    <div class="invalid-feedback" data-sb-feedback="name:required">
+                        A name is required.
+                    </div>
+                </div>
+                <div class="form-floating">
+                    <input class="form-control" id="stitle" type="text" name="stitle"
+                        placeholder="Enter your sub_title..." data-sb-validations="required" />
+                    <label for="stitle">Sub-Title</label>
+                </div>
+                <!-- <div class="form-floating">
+                    <input class="form-control" id="slug" type="text" name="slug" placeholder="Enter your slug..."
+                        data-sb-validations="required" />
+                    <label for="phone">Slug</label>
                 </div> -->
-        <!-- Submit Button-->
-        <div class="button-container mb-1">
-            <button class="btn btn-primary text-uppercase" id="submitButton" type="submit">Send</button>
+                <div class="form-floating">
+                    <textarea class="form-control" id="content" name="content" placeholder="Enter your content here..."
+                        style="height: 12rem" data-sb-validations="required"></textarea>
+                    <label for="message">Content</label>
+                    <div class="invalid-feedback" data-sb-feedback="message:required">
+                        A content is required.
+                    </div>
+                </div>
+                <br />
+                <!-- <div class="form-floating">
+                <textarea class="form-control" id="img_file" name="img_file" placeholder="put your file name here..." style="height: 12rem" data-sb-validations="required"></textarea>
+                <label for="message">Image File</label>
+            </div> -->
+                <!-- Submit Button-->
+                <div class="button-container mb-1">
+                    <button class="btn btn-primary text-uppercase" id="submitButton" type="submit">
+                        Send
+                    </button>
+                </div>
+            </form>
         </div>
-    </form>
+    </div>
 </div>
 {% endblock %}
